@@ -1,0 +1,47 @@
+{
+  "name": "@creatorfusion/mcp-server",
+  "version": "1.0.0",
+  "description": "MCP server for Creator Fusion toolkit - analyze TikTok/YouTube creators, detect fake followers, generate rate cards",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "creator-fusion-mcp": "./dist/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "prepare": "npm run build",
+    "start": "node dist/index.js"
+  },
+  "keywords": [
+    "mcp",
+    "ai",
+    "creator",
+    "tiktok",
+    "youtube",
+    "influencer",
+    "analytics",
+    "apify"
+  ],
+  "author": "Creator Fusion LLC",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "apify-client": "^2.9.0",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/jleftely-creator/creator-fusion-mcp.git"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ]
+}
