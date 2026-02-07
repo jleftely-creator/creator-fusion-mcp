@@ -36,6 +36,8 @@ const ACTORS = {
   authenticityAudit: "apricot_blackberry/audience-authenticity-audit",
   contentPerformance: "apricot_blackberry/content-performance-tracker",
   youtubeAnalyzer: "apricot_blackberry/youtube-creator-analyzer",
+  brandCompatibility: "apricot_blackberry/brand-compatibility-scorer",
+  competitiveIntel: "apricot_blackberry/competitive-intelligence",
 };
 
 // Tool definitions
@@ -194,6 +196,75 @@ Returns low/mid/high estimates for different deal types.`,
       },
       required: ["tiktokUsername"]
     }
+  },
+  {
+    name: "score_brand_compatibility",
+    description: `Match a brand with compatible TikTok creators.
+
+Analyzes:
+- Niche alignment (30%)
+- Engagement quality (25%)
+- Brand safety (20%)
+- Audience size fit (15%)
+- Sponsorship readiness (10%)
+
+Returns compatibility scores, strengths, flags, and recommendations.
+Can rank multiple creators for one brand using rankMode.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        brand: {
+          type: "object",
+          description: "Brand details: { category: 'technology', name: 'Acme', targetTier: 'micro' }"
+        },
+        tiktokUsernames: {
+          type: "array",
+          items: { type: "string" },
+          description: "Creators to evaluate"
+        },
+        rankMode: {
+          type: "boolean",
+          default: false,
+          description: "Rank creators and return sorted list with top pick"
+        }
+      },
+      required: ["brand", "tiktokUsernames"]
+    }
+  },
+  {
+    name: "analyze_competitive_landscape",
+    description: `Analyze competitor creators and benchmark performance.
+
+Two modes:
+- landscape: Analyze group as competitive market (rankings, market share, insights)
+- benchmark: Compare target against competitors (percentiles, gap analysis)
+
+Returns market leader, fastest growing, highest engagement, and strategic insights.`,
+    inputSchema: {
+      type: "object",
+      properties: {
+        mode: {
+          type: "string",
+          enum: ["landscape", "benchmark"],
+          default: "landscape"
+        },
+        tiktokUsernames: {
+          type: "array",
+          items: { type: "string" },
+          description: "Creators to analyze (landscape mode)"
+        },
+        targetUsername: {
+          type: "string",
+          description: "Target to benchmark (benchmark mode)"
+        },
+        competitorUsernames: {
+          type: "array",
+          items: { type: "string" },
+          description: "Competitors (benchmark mode)"
+        }
+      },
+      required: ["mode"]
+    }
   }
 ];
 
@@ -223,6 +294,23 @@ const YouTubeAnalyzerInput = z.object({
 
 const RateCardInput = z.object({
   tiktokUsername: z.string()
+});
+
+const BrandCompatibilityInput = z.object({
+  brand: z.object({
+    category: z.string().optional(),
+    name: z.string().optional(),
+    targetTier: z.string().optional()
+  }),
+  tiktokUsernames: z.array(z.string()),
+  rankMode: z.boolean().default(false)
+});
+
+const CompetitiveIntelInput = z.object({
+  mode: z.enum(["landscape", "benchmark"]),
+  tiktokUsernames: z.array(z.string()).optional(),
+  targetUsername: z.string().optional(),
+  competitorUsernames: z.array(z.string()).optional()
 });
 
 // Create MCP server
@@ -370,6 +458,52 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               engagementRate: profile.engagementRate,
               rateCard
             }, null, 2)
+          }]
+        };
+      }
+
+      case "score_brand_compatibility": {
+        const input = BrandCompatibilityInput.parse(args);
+        
+        const run = await apifyClient.actor(ACTORS.brandCompatibility).call({
+          brand: input.brand,
+          tiktokUsernames: input.tiktokUsernames,
+          rankMode: input.rankMode
+        }, { memory: 1024, timeout: 180 });
+
+        const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems();
+        
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(items, null, 2)
+          }]
+        };
+      }
+
+      case "analyze_competitive_landscape": {
+        const input = CompetitiveIntelInput.parse(args);
+        
+        const runInput: any = { mode: input.mode };
+        
+        if (input.mode === "benchmark") {
+          runInput.targetUsername = input.targetUsername;
+          runInput.competitorUsernames = input.competitorUsernames;
+        } else {
+          runInput.tiktokUsernames = input.tiktokUsernames;
+        }
+        
+        const run = await apifyClient.actor(ACTORS.competitiveIntel).call(runInput, { 
+          memory: 1024, 
+          timeout: 240 
+        });
+
+        const { items } = await apifyClient.dataset(run.defaultDatasetId).listItems();
+        
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify(items, null, 2)
           }]
         };
       }
